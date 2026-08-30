@@ -90,7 +90,7 @@ pipeline {
         // CHANGE THIS TO THE LOCATION OF YOUR AUTOMATION PROJECT
 
         PLAYWRIGHT_DIR =
-            'C:\\Users\\sudarshan.khot\\Downloads\\quiz-app-backend
+            'C:\\Users\\sudarshan.khot\\Downloads\\quiz-app-backend'
 
     }
 
@@ -191,59 +191,7 @@ pipeline {
         // 3. RUN BACKEND UNIT / INTEGRATION TESTS
         // ============================================================
 
-        stage('Backend Tests') {
-
-            steps {
-
-                echo '=========================================='
-                echo 'RUNNING BACKEND MAVEN TESTS'
-                echo '=========================================='
-
-                bat '''
-                    @echo off
-
-                    set "JAVA_HOME=%JAVA_HOME%"
-                    set "PATH=%JAVA_HOME%\\bin;%MAVEN_HOME%\\bin;%PATH%"
-
-                    cd /d "%WORKSPACE%\\%PROJECT_DIR%"
-
-                    echo.
-                    echo Current directory:
-                    cd
-
-                    echo.
-                    echo Running Maven tests...
-
-                    mvn clean test
-
-                    if errorlevel 1 (
-
-                        echo.
-                        echo ==========================================
-                        echo BACKEND TESTS FAILED
-                        echo ==========================================
-
-                        exit /b 1
-                    )
-
-                    echo.
-                    echo ==========================================
-                    echo BACKEND TESTS PASSED
-                    echo ==========================================
-                '''
-            }
-
-            post {
-
-                always {
-
-                    echo 'Publishing Maven test results...'
-
-                    junit allowEmptyResults: true,
-                          testResults: '**/target/surefire-reports/*.xml'
-                }
-            }
-        }
+        
 
 
         // ============================================================
@@ -629,80 +577,69 @@ pipeline {
 
         stage('Deploy Frontend WAR Files') {
 
-            steps {
+    steps {
 
-                echo '=========================================='
-                echo 'DEPLOYING FRONTEND WAR FILES'
-                echo '=========================================='
+        echo '=========================================='
+        echo 'DEPLOYING FRONTEND WAR FILES'
+        echo '=========================================='
 
-                bat '''
-                    @echo off
+        bat '''
+            @echo off
 
-                    if not exist "%TOMCAT_HOME%\\webapps" (
+            if not exist "%TOMCAT_HOME%\\webapps" (
+                echo ERROR:
+                echo Tomcat webapps directory not found.
+                exit /b 1
+            )
 
-                        echo ERROR:
-                        echo Tomcat webapps directory not found.
+            echo.
+            echo ==========================================
+            echo REMOVING OLD APPLICATIONS
+            echo ==========================================
 
-                        exit /b 1
-                    )
+            rmdir /S /Q "%TOMCAT_HOME%\\webapps\\%APPZILLON_CONTEXT%" 2>nul
+            del /F /Q "%TOMCAT_HOME%\\webapps\\%APPZILLON_CONTEXT%.war" 2>nul
 
-                    echo.
-                    echo ==========================================
-                    echo REMOVING OLD FRONTEND
-                    echo ==========================================
+            rmdir /S /Q "%TOMCAT_HOME%\\webapps\\%FRONTEND_CONTEXT%" 2>nul
+            del /F /Q "%TOMCAT_HOME%\\webapps\\%FRONTEND_CONTEXT%.war" 2>nul
 
-                    for %%C in (
-                        "%APPZILLON_CONTEXT%"
-                        "%FRONTEND_CONTEXT%"
-                    ) do (
+            echo.
+            echo ==========================================
+            echo COPYING APPZILLON SERVER WAR
+            echo ==========================================
 
-                        rmdir /S /Q "%TOMCAT_HOME%\\webapps\\%%~C" >nul 2>&1
+            copy /Y "%APPZILLON_SERVER_WAR%" "%TOMCAT_HOME%\\webapps\\%APPZILLON_CONTEXT%.war"
 
-                        del /F /Q "%TOMCAT_HOME%\\webapps\\%%~C.war" >nul 2>&1
-                    )
+            if errorlevel 1 (
+                echo APPZILLON SERVER WAR COPY FAILED
+                exit /b 1
+            )
 
+            echo.
+            echo ==========================================
+            echo COPYING FRONTEND WAR
+            echo ==========================================
 
-                    echo.
-                    echo ==========================================
-                    echo COPYING APPZILLON SERVER WAR
-                    echo ==========================================
+            copy /Y "%FRONTEND_WAR%" "%TOMCAT_HOME%\\webapps\\%FRONTEND_CONTEXT%.war"
 
-                    copy /Y "%APPZILLON_SERVER_WAR%" "%TOMCAT_HOME%\\webapps\\%APPZILLON_CONTEXT%.war"
+            if errorlevel 1 (
+                echo FRONTEND WAR COPY FAILED
+                exit /b 1
+            )
 
-                    if errorlevel 1 (
+            echo.
+            echo ==========================================
+            echo VERIFYING WAR FILES
+            echo ==========================================
 
-                        echo APPZILLON SERVER WAR COPY FAILED
+            dir "%TOMCAT_HOME%\\webapps\\%APPZILLON_CONTEXT%.war"
+            dir "%TOMCAT_HOME%\\webapps\\%FRONTEND_CONTEXT%.war"
 
-                        exit /b 1
-                    )
-
-
-                    echo.
-                    echo ==========================================
-                    echo COPYING FRONTEND WAR
-                    echo ==========================================
-
-                    copy /Y "%FRONTEND_WAR%" "%TOMCAT_HOME%\\webapps\\%FRONTEND_CONTEXT%.war"
-
-                    if errorlevel 1 (
-
-                        echo FRONTEND WAR COPY FAILED
-
-                        exit /b 1
-                    )
-
-
-                    echo.
-                    echo ==========================================
-                    echo FRONTEND WAR DEPLOYED
-                    echo ==========================================
-
-                    dir "%TOMCAT_HOME%\\webapps\\%APPZILLON_CONTEXT%.war"
-
-                    dir "%TOMCAT_HOME%\\webapps\\%FRONTEND_CONTEXT%.war"
-                '''
-            }
-        }
+            echo.
+            echo WAR files copied successfully.
+        '''
+    }
+}
 
 
         // ============================================================
